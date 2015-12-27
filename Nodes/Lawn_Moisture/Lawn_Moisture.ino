@@ -401,24 +401,21 @@ float TempMeasurement(byte SensorNumber)
    Accpets:		Encript , used to set radio encrption on
    				    NodeID
    				    NetworkID
-   				
-
-   Returns:     Nothing.
+              Key
+  
+   Returns:   Nothing.
    
 
    Parameters:  FREQUENCY, Hardprogrammed into device
    			        NodeID, user Settable
-   			        NetworkID, Same across all radios
-	  		        KEY, Used for Radio System
+   			        NetworkID, Same across all radios that have a common function. IE: outdoor sensors
+	  		        KEY, Same across all radios
 
-   Description: This function .
+   Description: This function accepts the nodeID, the networkID, the network key and the encritpion flag
+                and initializes the radio class and other member functions.
  ************************************************** */
 void InitializeRadio (uint8_t nodeID, uint8_t networkID, bool Encript)
 {
-	float AdjustFreq;
-	float t;   //Temperature in deg C
-
-
 	radio.initialize(FREQUENCY, nodeID, networkID); //initialize Radio
 	if (Encript == true)
 	{
@@ -426,11 +423,15 @@ void InitializeRadio (uint8_t nodeID, uint8_t networkID, bool Encript)
 	}
 	radio.promiscuous(PromiscuousMode);
 
-	t = TempMeasurement(1);
-	//AdjustFreq = ((123 * t * t * t) + (123 * t * t) + (123 * t) + 123); //our polynomial function
-	//radio.setFrequency(915 - AdjustFreq);
+}
 
+void adjustFrequency (int sensorNumber, int frequency) {
+  float AdjustFreq;
+  float t;   //Temperature in deg C
 
+  t = TempMeasurement(1);
+  AdjustFreq = ((123 * t * t * t) + (123 * t * t) + (123 * t) + 123); //our polynomial function
+  radio.setFrequency(frequency - AdjustFreq);
 }
 
 /* **************************************************
