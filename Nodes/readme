@@ -3,6 +3,7 @@ This is the location of all Remote and Gateway Nodes. Each node type is put into
 Node Type Table
 
 NodeTypeID    Description
+
 1             Message Gateway to server
 2             Program Gateway to server
 3             Lawn Moisture Sensor 
