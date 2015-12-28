@@ -126,8 +126,11 @@ void loop(void) {
 		}
 	}
 	
-	else if(NodeID == 250 && GatewayID != 0 && ProgramGatewayID != 0)
-		GetNodeParameters();
+	else if(NodeID == 250 && GatewayID != 0 && ProgramGatewayID != 0){
+    CreateHarwareIdentity(SendBuffer, SendBufferLength, NodeType, HardwareVer, SoftwareVer, MAC);
+		if(GetNodeParameters(SendBuffer, SendBufferLength, InputBuffer, InputBufferLength,ProgramGatewayID, ProgramNetworkID))
+      ProcessInputString(InputBuffer, InputBufferLength);
+	}
 
 //Main Loop after Node Initilization
 	else if(sleep_count == SleepCycles || SleepCycles == 0 && NodeID != 250) {
@@ -295,7 +298,12 @@ else
 /* **************************************************
    Name:        GetNodeParameters
 
-   Accepts:    Encrypt , used to set radio encryption on
+   Accepts:     SendBuffer        -as pointer
+                SendBufferLength  -as value
+                InputBuffer       -as pointer
+                InputBufferLength -as refrence
+                ProgramGatewayID  -as value
+                ProgramNetworkID  -as value
 
    Returns:     boolean, true means a successful NodeID capture
 
@@ -306,58 +314,43 @@ else
 
    Description: This function calls upon the programming gateway which is 
    5Mhz above the normal operating frequency and passes node type, hardware version
-   software version and external EEPROM address. The mcu sleeps until a message is
-   received back with. A function call to decode the message is called. A boolean 
-   value is passed out of the function to indicate a successful capture.
+   software version and external EEPROM address(contained in sendbuffer). The mcu sleeps until a message is
+   received back which should contain the node identity. If the mcu wakes without a sucessful capture it returns a boolean false, 
+   else it returns a boolean true and the inputbuffer contains the node identity.
  ************************************************** */
-//Change to programming Network
-//shift frequency +5Mhz
-//send node Identifiers
-// recieve nodeID
-bool GetNodeParameters(){
-
+bool GetNodeParameters(char *sendBuffer, uint8_t sendBufferLength,char *inputBuffer, uint8_t &inputBufferLength, uint8_t programGatewayID, uint8_t programNetworkID){
   radio.setFrequency(438000000);  	//Change frequency to programing network
-  radio.setNetwork(ProgramNetworkID);    			//Change Network to Programming Network
-  radio.send(ProgramGatewayID, &SendBuffer, SendBufferLength);
-  LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_ON);	//Sleep waiting for	data back
+  radio.setNetwork(programNetworkID);    			//Change Network to Programming Network
+  radio.sendWithRetry(programGatewayID, &sendBuffer, sendBufferLength);
+  LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_ON);	//Sleep waiting for	data back
   if(radio.receiveDone()) {
-		for (byte i = 0; i < radio.DATALEN; i++)
-		{
+		for (byte i = 0; i < radio.DATALEN; i++) {
 			InputBuffer[i] = (char)radio.DATA[i];
 			InputBufferLength += 1;
 		}
-
 		if (radio.ACKRequested())
-			radio.sendACK();
+			radio.sendACK();         //Send ACK ASAP!
 		
-		ProcessInputString(InputBuffer, InputBufferLength);
-   
-   if(Verbose){
+	if(Verbose || RadioEcho){
     CreateSendString(SendBuffer, SendBufferLength, F("Node Identity Sucessfully Obtained"), "");
     SerialSendwRadioEcho(SendBuffer);
    }
 		
-	 
-	NodeID = 65;
 	radio.setFrequency(433000000);
 	radio.setNetwork(NetworkID);
-  if(Verbose || RadioEcho){
-    CreateSendString(SendBuffer, SendBufferLength,F("Initilization Complete"), "");
-    SerialSendwRadioEcho(SendBuffer);
-  }
-	
+  
+	return true;
   }
   else{
-    //Need to add code if there is no response after x seconds
-      }
-	if(NodeID != 250)
-		return true;
-	else
-		return false;
+    if(Verbose || RadioEcho){
+    CreateSendString(SendBuffer, SendBufferLength,F("Did not capture Node Identity"), "");
+    SerialSendwRadioEcho(SendBuffer);
+    }      
+    return false;  //mcu woke but not via radio interrupt and did not sucessfully capture identity
+  }
 }
 
-void StartTempMeasurements ()
-{
+void StartTempMeasurements (){
 	byte DS18S20[8];
 	for (int i = 0; i < Number18S20; i++) {
 		flash.readBytes(32515 + (8 * i), &DS18S20, 8);
