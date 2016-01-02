@@ -1,1 +1,4 @@
+Lawn Moisture Sensor
 
+Consists of a Vegetronix VH400 and two (2) Dallas DS18S20 one wire thermometers. The internal thermometer is used for tuning the radio and the external is for maping ground 
+temperature. 
