@@ -104,7 +104,7 @@ void loop(void) {
         CreateSendString(SendBuffer, SendBufferLength,F("ERROR on Finding Gateway"), "");
         SerialSendwRadioEcho(SendBuffer);
       }
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+      LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
 		}
 			
 	}	
@@ -122,7 +122,7 @@ void loop(void) {
         CreateSendString(SendBuffer, SendBufferLength,F("ERROR on Finding Prog Gateway"), "");
         SerialSendwRadioEcho(SendBuffer);
       }
-		LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+		LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
 		}
 	}
 	
@@ -177,12 +177,15 @@ void loop(void) {
 		
 	}
 delay(1000);
-	radio.sleep();
+	
   if(Verbose || RadioEcho) {
     CreateSendString(SendBuffer, SendBufferLength,F("Sleep Count: "), sleep_count);
     SerialSendwRadioEcho(SendBuffer);
-	  Serial.flush();
-  }
+	}
+
+   //preparing to sleep 
+  Serial.flush();
+  radio.sleep();
 	LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
 	sleep_count ++;
 }
@@ -564,7 +567,7 @@ void SerialStreamCapture() {
 
   if(Verbose || RadioEcho){
 	  CreateSendString(SendBuffer,SendBufferLength, F("InputBufferLength:"),InputBufferLength);
-	  CreateSendString(SendBuffer,SendBufferLength,F("InputBuffer:"),InputBuffer);
+	  CreateSendString(SendBuffer,SendBufferLength,F("'\n'InputBuffer:"),InputBuffer);
     SerialSendwRadioEcho(SendBuffer);
   }
 	
