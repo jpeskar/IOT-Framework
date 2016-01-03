@@ -7,7 +7,7 @@
 #include <LowPower.h>       //https://github.com/rocketscream/Low-Power
 #include <EEPROM.h>
 #include <Flash.h>
-
+#include <NodeMessage.h>
 
 
 // Radio defines and Variable
@@ -60,7 +60,7 @@ void setup(void){
     //ToDo: real error handler here
     RadioEcho = true;
     Verbose = true;
-    CreateSendString(SendBuffer, SendBufferLength,F("External EEPROM Error!"), "");
+    message.CreateSendString(SendBuffer, SendBufferLength,F("External EEPROM Error!"), "");
     SerialSendwRadioEcho(SendBuffer);
   }
   GetNodeIdentity();
@@ -85,23 +85,23 @@ void loop(void) {
 	
 
 	if(Serial.available()> 0){
-    SerialStreamCapture();
+    message.SerialStreamCapture(InputBuffer, InputBufferLength);
     ProcessInputString(InputBuffer, InputBufferLength);
 	}
 		
-		Serial.print("NODEID"); Serial.print(NodeID);
+		
 	
 	if(NodeID == 250 && GatewayID == 0){
 	 GatewayID = FindGateway(NodeID, NetworkID, ackTime);
 		if(GatewayID !=0)
 			EEPROM.write(3, GatewayID);
 			if(Verbose || RadioEcho){
-          CreateSendString(SendBuffer, SendBufferLength,F("Selected GatewayID:"), GatewayID);
+          message.CreateSendString(SendBuffer, SendBufferLength,F("Selected GatewayID:"), GatewayID);
           SerialSendwRadioEcho(SendBuffer); 
         }
 		else {
 			if (Verbose || RadioEcho){
-        CreateSendString(SendBuffer, SendBufferLength,F("ERROR on Finding Gateway"), "");
+        message.CreateSendString(SendBuffer, SendBufferLength,F("ERROR on Finding Gateway"), "");
         SerialSendwRadioEcho(SendBuffer);
       }
       LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
@@ -113,13 +113,13 @@ void loop(void) {
 		if (ProgramGatewayID != 0) {
 			EEPROM.write(29, ProgramGatewayID);
         if(Verbose || RadioEcho){
-          CreateSendString(SendBuffer, SendBufferLength,F("Selected Prog GatewayID:"), ProgramGatewayID);
+          message.CreateSendString(SendBuffer, SendBufferLength,F("Selected Prog GatewayID:"), ProgramGatewayID);
           SerialSendwRadioEcho(SendBuffer); 
         }
 		} 
 		else {
       if (Verbose || RadioEcho){
-        CreateSendString(SendBuffer, SendBufferLength,F("ERROR on Finding Prog Gateway"), "");
+        message.CreateSendString(SendBuffer, SendBufferLength,F("ERROR on Finding Prog Gateway"), "");
         SerialSendwRadioEcho(SendBuffer);
       }
 		LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
@@ -127,7 +127,7 @@ void loop(void) {
 	}
 	
 	else if(NodeID == 250 && GatewayID != 0 && ProgramGatewayID != 0){
-    CreateHarwareIdentity(SendBuffer, SendBufferLength, NodeType, HardwareVer, SoftwareVer, MAC);
+    message.CreateHarwareIdentity(SendBuffer, SendBufferLength, NodeType, HardwareVer, SoftwareVer, MAC);
 		if(GetNodeParameters(SendBuffer, SendBufferLength, InputBuffer, InputBufferLength,ProgramGatewayID, ProgramNetworkID))
       ProcessInputString(InputBuffer, InputBufferLength);
 	}
@@ -146,32 +146,31 @@ void loop(void) {
 		//Battery Voltage Content Section
 		tempFloat = BatteryMeasurement() / 1000;
 		dtostrf(tempFloat, 4, 2, tempChar);
-		CreateSendString(SendBuffer, SendBufferLength,"V:", tempChar);
+		message.CreateSendString(SendBuffer, SendBufferLength,"V:", tempChar);
 		
 		//Volumetric Water Content Section
 		tempFloat = MoistureMeasurement();
 		dtostrf(tempFloat, 3, 1, tempChar);
 		digitalWrite(A3, LOW); //Turn off moisture Power
-		CreateSendString(SendBuffer, SendBufferLength,"VWC:", tempChar);
+		message.CreateSendString(SendBuffer, SendBufferLength,"VWC:", tempChar);
 		
 		//Soil Temperature in deg c
 		tempFloat = TempMeasurement(0);
 		dtostrf(tempFloat, 4, 2, tempChar);
-		CreateSendString(SendBuffer, SendBufferLength,"LTC:", tempChar);
+		message.CreateSendString(SendBuffer, SendBufferLength,"LTC:", tempChar);
 				
 		InitializeRadio(NodeID,NetworkID, true); // Radio must be initialized after sleep?
 		SerialSendwRadioEcho (SendBuffer);
 		if (radio.sendWithRetry(GatewayID, &SendBuffer, SendBufferLength, retries, ackTime)){
       //TODO:Check if Data in ACK
 			if(Verbose || RadioEcho) {
-			  CreateSendString(SendBuffer, SendBufferLength,F("Ack Recieved"), "");
+			  message.CreateSendString(SendBuffer, SendBufferLength,F("Ack Recieved"), "");
         SerialSendwRadioEcho(SendBuffer);
 			}
       
 		}
 		else{
-			SendString(F("Nothing"));
-      CreateSendString(SendBuffer, SendBufferLength,F("Nothing"), "");
+			message.CreateSendString(SendBuffer, SendBufferLength,F("Nothing"), "");
       SerialSendwRadioEcho(SendBuffer);
 		}
 		
@@ -179,7 +178,7 @@ void loop(void) {
 delay(1000);
 	
   if(Verbose || RadioEcho) {
-    CreateSendString(SendBuffer, SendBufferLength,F("Sleep Count: "), sleep_count);
+    message.CreateSendString(SendBuffer, SendBufferLength,F("Sleep Count: "), sleep_count);
     SerialSendwRadioEcho(SendBuffer);
 	}
 
@@ -203,7 +202,7 @@ delay(1000);
  ************************************************** */
 void GetNodeIdentity(){
   if (Verbose || RadioEcho) {
-	  CreateSendString(SendBuffer, SendBufferLength,F("Getting Parameters"), "");
+	  message.CreateSendString(SendBuffer, SendBufferLength,F("Getting Parameters"), "");
     SerialSendwRadioEcho(SendBuffer);
   }
 
@@ -235,7 +234,7 @@ void GetNodeIdentity(){
 	HardwareVer = flash.readByte(32513);
 	Number18S20 = flash.readByte(32514);
   if(Verbose || RadioEcho){
-	  CreateSendString(SendBuffer, SendBufferLength,F( "Parameters Loaded"), "");
+	  message.CreateSendString(SendBuffer, SendBufferLength,F( "Parameters Loaded"), "");
     SerialSendwRadioEcho(SendBuffer);
  }
 }
@@ -267,7 +266,7 @@ uint8_t     gatewayCount =0;
 	sendTime = millis();
 	radio.setNetwork(networkID); //Set Nework to Desired NetworkID
   if(Verbose || RadioEcho){
-    CreateSendString(SendBuffer, SendBufferLength,F("Searching"), "");
+    message.CreateSendString(SendBuffer, SendBufferLength,F("Searching"), "");
     SerialSendwRadioEcho(SendBuffer);
  }
 	radio.send(255,"",1,false);  //broadcast to all Nodes on Network
@@ -335,7 +334,7 @@ bool GetNodeParameters(char *sendBuffer, uint8_t sendBufferLength,char *inputBuf
 			radio.sendACK();         //Send ACK ASAP!
 		
 	if(Verbose || RadioEcho){
-    CreateSendString(SendBuffer, SendBufferLength, F("Node Identity Sucessfully Obtained"), "");
+    message.CreateSendString(SendBuffer, SendBufferLength, F("Node Identity Sucessfully Obtained"), "");
     SerialSendwRadioEcho(SendBuffer);
    }
 		
@@ -346,7 +345,7 @@ bool GetNodeParameters(char *sendBuffer, uint8_t sendBufferLength,char *inputBuf
   }
   else{
     if(Verbose || RadioEcho){
-    CreateSendString(SendBuffer, SendBufferLength,F("Did not capture Node Identity"), "");
+    message.CreateSendString(SendBuffer, SendBufferLength,F("Did not capture Node Identity"), "");
     SerialSendwRadioEcho(SendBuffer);
     }      
     return false;  //mcu woke but not via radio interrupt and did not sucessfully capture identity
@@ -413,8 +412,7 @@ float TempMeasurement(byte SensorNumber)
 void InitializeRadio (uint8_t nodeID, uint8_t networkID, bool Encript)
 {
 	radio.initialize(FREQUENCY, nodeID, networkID); //initialize Radio
-	if (Encript == true)
-	{
+	if (Encript == true){
 		radio.encrypt(KEY);
 	}
 	radio.promiscuous(PromiscuousMode);
@@ -522,10 +520,10 @@ void SerialSendwRadioEcho (char *payload)
     if(radio.sendWithRetry(GatewayID, payload, payloadLength, retries, ackTime));
 	  radio.send(GatewayID, "ACK Recieved", 13);
   }
-  ClearBuffer(payload);
+  message.ClearBuffer(payload);
   SendBufferLength = 0;
 }
-
+/* ****************
 void CreateSendString(char *buffer, uint8_t &sendBufferLength, const char *tag, char *value) {
 
   sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",tag);
@@ -573,6 +571,7 @@ void SerialStreamCapture() {
 	
 }
 
+**** */
 
 /* **************************************************
    Name:        ProcessInputString
@@ -740,7 +739,7 @@ void SendString(const __FlashStringHelper* message)
   }
   
 }
-
+/*
 void CreateHarwareIdentity(char *sendBuffer, uint8_t &sendBufferLength, uint8_t nodeType, uint8_t hwVer, uint8_t swVer, uint8_t *mac){
   flash.readUniqueId();  
   for (int j = 0; j < 8; j++) {
@@ -754,6 +753,8 @@ void CreateHarwareIdentity(char *sendBuffer, uint8_t &sendBufferLength, uint8_t 
   CreateSendString(sendBuffer, sendBufferLength,"HV:", hwVer);
   CreateSendString(sendBuffer, sendBufferLength,"SV:", swVer); 
 }
+
+*/
 int freeRam ()
 {
 	extern int __heap_start, *__brkval;
