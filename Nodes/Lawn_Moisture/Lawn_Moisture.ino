@@ -40,8 +40,8 @@ uint8_t	 InputBufferLength = 0;
 #define LED (9)          //Monetio LED
 #define MoisturePWR A3   //Power Pin for moisture sensor
 #define Temperature 7    //Digital Onewire for Temperature
-#define MoistureADC A0   //Analog ADC Pin for moisture sensor
-#define BatteryADC  A1
+#define MoistureADC 14   //A0 Analog ADC Pin for moisture sensor
+#define BatteryADC  15   //A1 Analog ADC Pin for battery
 
 volatile int sleep_count = 0;
 
@@ -144,7 +144,7 @@ void loop(void) {
 														//keep radio on
 
 		//Battery Voltage Content Section
-		tempFloat = BatteryMeasurement() / 1000;
+		tempFloat = BatteryMeasurement(BatteryADC) / 1000;
 		dtostrf(tempFloat, 4, 2, tempChar);
 		message.CreateSendString(SendBuffer, SendBufferLength,"V:", tempChar);
 		
@@ -161,6 +161,7 @@ void loop(void) {
 				
 		InitializeRadio(NodeID,NetworkID, true); // Radio must be initialized after sleep?
 		SerialSendwRadioEcho (SendBuffer);
+    
 		if (radio.sendWithRetry(GatewayID, &SendBuffer, SendBufferLength, retries, ackTime)){
       //TODO:Check if Data in ACK
 			if(Verbose || RadioEcho) {
@@ -523,7 +524,55 @@ void SerialSendwRadioEcho (char *payload)
   message.ClearBuffer(payload);
   SendBufferLength = 0;
 }
+/* ****************
+void CreateSendString(char *buffer, uint8_t &sendBufferLength, const char *tag, char *value) {
 
+  sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",tag);
+  sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",value);
+}
+
+
+void CreateSendString(char *buffer, uint8_t &sendBufferLength, const char *tag, uint8_t value) {
+  sendBufferLength += sprintf(&buffer[sendBufferLength],tag);
+  sendBufferLength += sprintf(&buffer[sendBufferLength],"%d",value);
+}
+
+void CreateSendString(char *buffer, uint8_t &sendBufferLength, byte hexValue) {
+  sendBufferLength += sprintf(&buffer[sendBufferLength],"%02X",hexValue);
+}
+
+void CreateSendString(char *buffer, uint8_t &sendBufferLength, const __FlashStringHelper* message, int8_t value) {
+  sendBufferLength += sprintf_P(&buffer[sendBufferLength], PSTR("%S") , message);
+  sendBufferLength += sprintf(&buffer[sendBufferLength],"%d",value);
+}
+void CreateSendString(char *buffer, uint8_t &sendBufferLength, const __FlashStringHelper* message, char *value) {
+  sendBufferLength += sprintf_P(&buffer[sendBufferLength], PSTR("%S") , message);
+  sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",value);
+}
+
+void SerialStreamCapture() {
+	char temp;
+	uint8_t i = 0;
+		
+	while(Serial.available()>0){
+		temp= Serial.read();
+		if(temp != '\n' || temp !='\r'){ //TODO
+			InputBuffer[InputBufferLength] = temp;
+			InputBufferLength++;
+			delay(20);
+		}
+	}
+	InputBuffer[InputBufferLength] = '\0'; //Null Terminate the string.
+
+  if(Verbose || RadioEcho){
+	  CreateSendString(SendBuffer,SendBufferLength, F("InputBufferLength:"),InputBufferLength);
+	  CreateSendString(SendBuffer,SendBufferLength,F("'\n'InputBuffer:"),InputBuffer);
+    SerialSendwRadioEcho(SendBuffer);
+  }
+	
+}
+
+**** */
 
 /* **************************************************
    Name:        ProcessInputString
@@ -691,7 +740,22 @@ void SendString(const __FlashStringHelper* message)
   }
   
 }
+/*
+void CreateHarwareIdentity(char *sendBuffer, uint8_t &sendBufferLength, uint8_t nodeType, uint8_t hwVer, uint8_t swVer, uint8_t *mac){
+  flash.readUniqueId();  
+  for (int j = 0; j < 8; j++) {
+    CreateSendString(sendBuffer, sendBufferLength, mac[j]);
+    if (j <7){
+      sendBuffer[sendBufferLength]= ':';    
+      sendBufferLength ++;
+     }
+   }
+  CreateSendString(sendBuffer, sendBufferLength,"HT:", nodeType);
+  CreateSendString(sendBuffer, sendBufferLength,"HV:", hwVer);
+  CreateSendString(sendBuffer, sendBufferLength,"SV:", swVer); 
+}
 
+*/
 int freeRam ()
 {
 	extern int __heap_start, *__brkval;
