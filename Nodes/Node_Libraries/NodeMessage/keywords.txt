@@ -1,0 +1,24 @@
+#######################################
+# Syntax Coloring Map for NodeMessage
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+message 	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+CreateSendString		KEYWORD2
+ClearBuffer				KEYWORD2
+SerialStreamCapture		KEYWORD2
+SerialSendwRadioEcho	KEYWORD2
+
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+

@@ -1,4 +1,5 @@
 ﻿#include <Battery.h>
+#include <Arduino.h>
 
 /* **************************************************
    Name:        BatteryMeasurement
