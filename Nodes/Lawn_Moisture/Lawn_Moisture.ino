@@ -1,13 +1,14 @@
 
-#include <RFM69.h>			//Library by Felix Rusu - felix@lowpowerlab.com
+#include <RFM69.h>			      //Library by Felix Rusu - felix@lowpowerlab.com
 //#include <WirelessHEX69.h>  //Library by Felix Rusu - felix@lowpowerlab.com
 #include <SPI.h>
-#include <SPIFlash.h>       //Library by Felix Rusu - felix@lowpowerlab.com
+#include <SPIFlash.h>         //Library by Felix Rusu - felix@lowpowerlab.com
 #include <OneWire.h>
-#include <LowPower.h>       //https://github.com/rocketscream/Low-Power
+#include <LowPower.h>         //https://github.com/rocketscream/Low-Power
 #include <EEPROM.h>
 #include <Flash.h>
 #include <NodeMessage.h>
+#include <Battery.h>
 
 
 // Radio defines and Variable
@@ -38,10 +39,10 @@ uint8_t	 InputBufferLength = 0;
 #define FREQUENCY   RF69_433MHZ // 433Mhz radio
 //Pin Defines
 #define LED (9)          //Monetio LED
-#define MoisturePWR A3   //Power Pin for moisture sensor
-#define Temperature 7    //Digital Onewire for Temperature
-#define MoistureADC 14   //A0 Analog ADC Pin for moisture sensor
-#define BatteryADC  15   //A1 Analog ADC Pin for battery
+#define MoisturePWR 3   //Power Pin for moisture sensor
+#define Temperature 4    //Digital Onewire for Temperature
+#define MoistureADC A0   //A0 Analog ADC Pin for moisture sensor
+#define BatteryADC  A7   //A1 Analog ADC Pin for battery
 
 volatile int sleep_count = 0;
 
@@ -163,15 +164,25 @@ void loop(void) {
 		SerialSendwRadioEcho (SendBuffer);
     
 		if (radio.sendWithRetry(GatewayID, &SendBuffer, SendBufferLength, retries, ackTime)){
-      //TODO:Check if Data in ACK
-			if(Verbose || RadioEcho) {
-			  message.CreateSendString(SendBuffer, SendBufferLength,F("Ack Recieved"), "");
-        SerialSendwRadioEcho(SendBuffer);
-			}
+      if(AckDataCheck(InputBuffer, InputBufferLength){
+        
+        //Do Something with Data
+
+        if((Verbose || RadioEcho) {
+          message.CreateSendString(SendBuffer, SendBufferLength,F("Ack Recieved With Data"), "");
+          SerialSendwRadioEcho(SendBuffer);
+      }
       
+			else {
+			  if((Verbose || RadioEcho) {
+			    message.CreateSendString(SendBuffer, SendBufferLength,F("Ack Recieved No Data"), "");
+          SerialSendwRadioEcho(SendBuffer);
+			  }
+			}
 		}
 		else{
-			message.CreateSendString(SendBuffer, SendBufferLength,F("Nothing"), "");
+			// Turn This into an  Error... Or something
+			message.CreateSendString(SendBuffer, SendBufferLength,F("No Ack"), "");
       SerialSendwRadioEcho(SendBuffer);
 		}
 		
@@ -182,7 +193,7 @@ delay(1000);
     message.CreateSendString(SendBuffer, SendBufferLength,F("Sleep Count: "), sleep_count);
     SerialSendwRadioEcho(SendBuffer);
 	}
-
+	}
    //preparing to sleep 
   Serial.flush();
   radio.sleep();
@@ -259,10 +270,11 @@ void GetNodeIdentity(){
  ************************************************** */
 uint8_t FindGateway(uint8_t nodeID,  uint8_t networkID, uint8_t ackTime) {
 uint8_t     tempGatewayID[2] ={0,0};
-int8_t      tempRSSI[2] = {0,0};
+int16_t      tempRSSI[2] = {0,0};
 uint8_t     tempAckTime[2] = {0,0};
 uint32_t	  sendTime;
 uint8_t     gatewayCount =0;
+char        tempData;
 
 	sendTime = millis();
 	radio.setNetwork(networkID); //Set Nework to Desired NetworkID
@@ -274,11 +286,14 @@ uint8_t     gatewayCount =0;
 	while(millis() - sendTime < ackTime*100) {
 		if(radio.receiveDone()) {
 			tempGatewayID[1] = radio.SENDERID;
-			tempRSSI[1] = radio.RSSI;
       tempAckTime[1] = millis()- sendTime;
-			if(radio.ACKRequested())
+			for (i =0; i< radio.DATALEN; i++) {
+        InputBuffer[i] = radio.DATA[i];
+      }
+      tempRSSI[1] = atoi(InputBuffer);
+      if(radio.ACKRequested())
 				radio.sendACK();
-			SendString(F("Got One!"));
+			
 			Serial.print("[RX_RSSI:");delay(10);Serial.print(radio.RSSI);delay(10);Serial.println("]");delay(10);
 			Serial.print("GatewayID:");delay(10);Serial.println(tempGatewayID[1]);
 			gatewayCount ++;
@@ -524,55 +539,7 @@ void SerialSendwRadioEcho (char *payload)
   message.ClearBuffer(payload);
   SendBufferLength = 0;
 }
-/* ****************
-void CreateSendString(char *buffer, uint8_t &sendBufferLength, const char *tag, char *value) {
 
-  sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",tag);
-  sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",value);
-}
-
-
-void CreateSendString(char *buffer, uint8_t &sendBufferLength, const char *tag, uint8_t value) {
-  sendBufferLength += sprintf(&buffer[sendBufferLength],tag);
-  sendBufferLength += sprintf(&buffer[sendBufferLength],"%d",value);
-}
-
-void CreateSendString(char *buffer, uint8_t &sendBufferLength, byte hexValue) {
-  sendBufferLength += sprintf(&buffer[sendBufferLength],"%02X",hexValue);
-}
-
-void CreateSendString(char *buffer, uint8_t &sendBufferLength, const __FlashStringHelper* message, int8_t value) {
-  sendBufferLength += sprintf_P(&buffer[sendBufferLength], PSTR("%S") , message);
-  sendBufferLength += sprintf(&buffer[sendBufferLength],"%d",value);
-}
-void CreateSendString(char *buffer, uint8_t &sendBufferLength, const __FlashStringHelper* message, char *value) {
-  sendBufferLength += sprintf_P(&buffer[sendBufferLength], PSTR("%S") , message);
-  sendBufferLength += sprintf(&buffer[sendBufferLength],"%s",value);
-}
-
-void SerialStreamCapture() {
-	char temp;
-	uint8_t i = 0;
-		
-	while(Serial.available()>0){
-		temp= Serial.read();
-		if(temp != '\n' || temp !='\r'){ //TODO
-			InputBuffer[InputBufferLength] = temp;
-			InputBufferLength++;
-			delay(20);
-		}
-	}
-	InputBuffer[InputBufferLength] = '\0'; //Null Terminate the string.
-
-  if(Verbose || RadioEcho){
-	  CreateSendString(SendBuffer,SendBufferLength, F("InputBufferLength:"),InputBufferLength);
-	  CreateSendString(SendBuffer,SendBufferLength,F("'\n'InputBuffer:"),InputBuffer);
-    SerialSendwRadioEcho(SendBuffer);
-  }
-	
-}
-
-**** */
 
 /* **************************************************
    Name:        ProcessInputString
@@ -732,14 +699,6 @@ void ClearBuffer (char *buffer){
   }
 }
 
-void SendString(const __FlashStringHelper* message)
-{
-  if(Verbose){
-	  sprintf_P(SendBuffer, PSTR("%S") , message);
-	  Serial.println(SendBuffer);
-  }
-  
-}
 /*
 void CreateHarwareIdentity(char *sendBuffer, uint8_t &sendBufferLength, uint8_t nodeType, uint8_t hwVer, uint8_t swVer, uint8_t *mac){
   flash.readUniqueId();  
@@ -756,6 +715,26 @@ void CreateHarwareIdentity(char *sendBuffer, uint8_t &sendBufferLength, uint8_t 
 }
 
 */
+
+
+//bool AckDataCheck(char *ackData, uint8_t &dataLength){
+//bool data = false;
+
+//noInterrupts();
+  //check for data in ack
+//  if( radio.DATA > 0) {
+//    data = true;
+//    dataLength = 0;
+//    for (int i=0; i<radio.DATALEN; i++) 
+//        ackData[i] = radio.DATA[i]; //save data
+//        dataLength+;
+//    }
+//    else
+//        ackData[0]=0;
+//    interrupts();
+//    return data;
+//}
+ 
 int freeRam ()
 {
 	extern int __heap_start, *__brkval;

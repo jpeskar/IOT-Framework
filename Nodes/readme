@@ -4,7 +4,17 @@ Node Type Table
 
 NodeTypeID    Description
 
-1             Message Gateway to server
-2             Program Gateway to server
-3             Lawn Moisture Sensor 
-4             
+1	Message Gateway to server
+2	Program Gateway to server
+3	Lawn Moisture Sensor 
+4		   
+
+
+Node Message Type Table
+
+1	Messages- Char array of length 50
+2	Messages - Alert/Error messages
+2	NewSend- Node info sent to gateway to get node ID
+3	NewReturn - Returned NodeID and ect.
+4	lawnPacket - Returned data from lawn moisture 
+             
