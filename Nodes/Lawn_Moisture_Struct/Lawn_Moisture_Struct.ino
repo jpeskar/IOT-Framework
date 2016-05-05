@@ -6,7 +6,7 @@
 #include <OneWire.h>
 #include <LowPower.h>       //https://github.com/rocketscream/Low-Power
 #include <EEPROM.h>
-//#include <Flash.h>
+
 #include <NodeMessageStruct.h>
 #include <NodeStruct.h>
 #include <Battery.h>
@@ -29,14 +29,6 @@ bool 	   RadioEcho = false;
 bool	   Verbose = true;
 char     InputBuffer[64];
 uint8_t	 InputBufferLength = 0;
-
-struct LawnPacket {
-  uint8_t dataLength;
-  uint8_t dataType; //#5
-  float   battVoltage;
-  float   lawnMoisture;
-  float   lawnTemp;
-};
 
 #define SERIAL_BAUD 115200
 #define FREQUENCY   RF69_433MHZ // 433Mhz radio
@@ -238,7 +230,7 @@ void GetNodeIdentity(){
  ************************************************** */
 uint8_t FindGateway(uint8_t nodeID,  uint8_t networkID, uint8_t AckTime) {
 uint8_t     tempGatewayID[2] ={0,0};
-int8_t      tempRSSI[2] = {0,0};
+int16_t      tempRSSI[2] = {0,0};
 uint32_t	  sendTime;
 uint8_t     gatewayCount =0;
 
@@ -250,7 +242,7 @@ uint8_t     gatewayCount =0;
 	while(millis() - sendTime < AckTime*100) {
 		if(radio.receiveDone()) {
 			tempGatewayID[1] = radio.SENDERID;
-		  tempRSSI[1] = radio.RSSI;
+      tempRSSI[1] = (uint16_t)radio.DATA; //save RSSI from data packet
       if(radio.ACKRequested())
 				radio.sendACK();
 			if(Verbose || RadioEcho){message.SendMessage(GatewayID, F("GatewayID:"),tempGatewayID[1], MESSAGE , Verbose, RadioEcho);}
@@ -293,9 +285,9 @@ else
    received back which should contain the node identity. If the mcu wakes without a sucessful capture it returns a boolean false, 
    else it returns a boolean true and the inputbuffer contains the node identity.
  ************************************************** */
-bool GetNodeParameters(char *sendBuffer, uint8_t sendBufferLength,char *inputBuffer, uint8_t &inputBufferLength, uint8_t programGatewayID, uint8_t programNetworkID){
+bool GetNodeParameters(uint8_t programGatewayID, uint8_t programNetworkID){
   bool nodeIdentitySet = false;
-  NewSend myID;
+  NewSend myID;  //struct of type NewSend
 
   myID.dataLength =  sizeof(NewSend); 
   myID.dataType =    NEWSEND;
@@ -303,16 +295,18 @@ bool GetNodeParameters(char *sendBuffer, uint8_t sendBufferLength,char *inputBuf
   myID.hardwareVer = EEPROM.read(2);
   myID.softwareVer = EEPROM.read(0);
 
-  
+  flash.readUniqueID();
+  for (uint8_t i = 0, i < 8, i++){
+    myID.mac[i] = flash.UNIQUEID[i]
+  }
   
   radio.setFrequency(438000000);  	//Change frequency to programing network
   radio.setNetwork(programNetworkID);    			//Change Network to Programming Network
-  radio.sendWithRetry(programGatewayID, &sendBuffer, sendBufferLength);
-  LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_ON);	//Sleep waiting for	data back
+  radio.sendWithRetry(programGatewayID, (const void*)(&myID), sizeof(myID));
+  LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);	//Sleep waiting for	data back
   if(radio.receiveDone() && radio.DATA[0] == radio.DATALEN) {
-		memcpy(inputBuffer, (const void *)radio.DATA, radio.DATALEN);
 		if(ParseStructData()) { 
-    nodeIdentitySet = true;
+      nodeIdentitySet = true;
     }
 		if (radio.ACKRequested())
 			radio.sendACK();         //Send ACK ASAP
@@ -575,6 +569,7 @@ bool ParseStructData() {
           Message* temp = (Message *)radio.DATA;
           strcpy(InputBuffer, temp-> charMessage);
           Serial.print(InputBuffer);
+
           break;
         }
         
@@ -582,14 +577,7 @@ bool ParseStructData() {
     }
   }
 }
-/*
-uint8_t dataLength;
-  uint8_t dataType;
-  uint8_t nodeID;
-  uint8_t Retries;
-  uint8_t AckTime;
-  uint8_t sleepTime;
-*/
+
 
 
 
